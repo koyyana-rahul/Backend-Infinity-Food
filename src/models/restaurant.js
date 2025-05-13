@@ -15,7 +15,13 @@ const restaurantSchema = mongoose.Schema(
       trim: true,
       validate: {
         validator: function (value) {
-          return !value || validator.isURL(value, { protocols: ['http','https'], require_protocol: true });
+          return (
+            !value ||
+            validator.isURL(value, {
+              protocols: ["http", "https"],
+              require_protocol: true,
+            })
+          );
         },
         message: "Invalid image URL. Must be a valid HTTP/HTTPS URL.",
       },
@@ -31,20 +37,34 @@ const restaurantSchema = mongoose.Schema(
       type: String,
       required: [true, "Contact number is required"],
       trim: true,
+      unique: true, // <- Enforces unique contact numbers
       validate: {
         validator: function (value) {
-          return validator.isMobilePhone(value, 'any', { strictMode: false });
+          return validator.isMobilePhone(value, "any", { strictMode: false });
         },
         message: "Invalid contact number.",
       },
     },
-    owner: {
+    ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
       required: [true, "Owner reference is required"],
     },
+    qrcodeId: {
+      type: String,
+      unique: true, // Optional: ensures qrcodeId is also unique
+    },
   },
   { timestamps: true }
 );
+
+// Pre-save hook to generate qrcodeId if not already set
+restaurantSchema.pre("save", function (next) {
+  if (!this.qrcodeId && this.ownerId) {
+    const suffix = new mongoose.Types.ObjectId().toString().slice(-6);
+    this.qrcodeId = `QR-${this.ownerId.toString().slice(-6)}-${suffix}`;
+  }
+  next();
+});
 
 module.exports = mongoose.model("Restaurant", restaurantSchema);

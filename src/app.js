@@ -4,6 +4,7 @@ const cookieParser = require("cookie-parser");
 
 const adminRouter = require("./routes/admin");
 const restaurantRouter = require("./routes/restaurant");
+const chefWaiterRouter = require("./routes/chefWaiter");
 
 const app = express();
 
@@ -12,6 +13,7 @@ app.use(cookieParser());
 
 app.use("/", adminRouter);
 app.use("/", restaurantRouter);
+app.use("/", chefWaiterRouter);
 
 connectDB()
   .then(() => {

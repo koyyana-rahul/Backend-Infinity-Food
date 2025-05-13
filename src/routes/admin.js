@@ -1,17 +1,21 @@
 const express = require("express");
 const { validateAdminSignup } = require("../utils/validation");
 const Admin = require("../models/admin");
+const ChefWaiter = require("../models/chefWaiter");
 const adminRouter = express.Router();
+const Category = require("../models/catetgory");
 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { authAdmin } = require("../middlewares/auth");
+const admin = require("../models/admin");
 
 // --- Admin Signup ---
 adminRouter.post("/admin/signup", async (req, res) => {
   try {
     validateAdminSignup(req);
 
-    const { name, email, role, password } = req.body;
+    const { name, email, password } = req.body;
 
     // Check if admin already exists
     const existingAdmin = await Admin.findOne({ email });
@@ -26,7 +30,7 @@ adminRouter.post("/admin/signup", async (req, res) => {
     const newAdmin = new Admin({
       name,
       email,
-      role,
+      role: "admin",
       password: passwordHash,
     });
 
@@ -99,7 +103,7 @@ adminRouter.post("/admin/login", async (req, res) => {
   }
 });
 
-adminRouter.post("/logout", async (req, res) => {
+adminRouter.post("/admin/logout", async (req, res) => {
   try {
     res.cookie("token", null, { expires: new Date(Date.now()) });
     res.status(200).json({
@@ -110,6 +114,102 @@ adminRouter.post("/logout", async (req, res) => {
     res.status(400).json({
       success: false,
       error: err.message || "Logout failed",
+    });
+  }
+});
+
+adminRouter.post(
+  "/admin/create-chef-waiter",
+  authAdmin, // Middleware for authentication
+  async (req, res) => {
+    try {
+      // Destructure the data sent in the request body
+      const { name, email, password, role, restaurantId } = req.body;
+
+      // Validate input
+      if (!name || !email || !password || !role || !restaurantId) {
+        return res.status(400).json({ message: "All fields are required." });
+      }
+
+      // Check if the chef/waiter already exists
+      const existingChefWaiter = await ChefWaiter.findOne({ email });
+      if (existingChefWaiter) {
+        return res
+          .status(400)
+          .json({ message: `${role} already exists with this email.` });
+      }
+
+      // Hash password securely
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create new ChefWaiter instance
+      const newChefWaiter = new ChefWaiter({
+        name,
+        email,
+        password: passwordHash,
+        role,
+        restaurantId,
+        adminId: req.admin._id, // Use the authenticated admin's ID
+      });
+
+      // Save new chef/waiter to the database
+      const savedChefWaiter = await newChefWaiter.save();
+
+      // Generate JWT token for the chef/waiter
+      const chefWaiterToken = await savedChefWaiter.getJWT();
+
+      // Respond with success message and the chef/waiter's data
+      res
+        .cookie("chefWaiter_token", chefWaiterToken, {
+          httpOnly: true, // Security measure to prevent client-side JS from accessing the cookie
+          expires: new Date(Date.now() + 8 * 3600000), // Cookie expiration (8 hours)
+        })
+        .status(201)
+        .json({
+          message: `${savedChefWaiter.role} created successfully.`,
+          chefWaiterToken,
+          chefWaiter: {
+            id: savedChefWaiter._id,
+            name: savedChefWaiter.name,
+            email: savedChefWaiter.email,
+            role: savedChefWaiter.role,
+            restaurantId: savedChefWaiter.restaurantId,
+            adminId: savedChefWaiter.adminId,
+          },
+        });
+    } catch (err) {
+      console.error("Error creating chef/waiter:", err); // Log error for debugging
+      res.status(500).json({ error: err.message || "Something went wrong" });
+    }
+  }
+);
+
+adminRouter.post("/admin/add-categories", authAdmin, async (req, res) => {
+  try {
+    const admin = req.admin;
+    const { name, description, image, restaurantId } = req.body;
+
+    const category = new Category({
+      name,
+      description,
+      image,
+      restaurantId,
+    });
+
+    const savedCategory = await category.save();
+    res.status(200).json({
+      message: "category added successfully",
+      category: {
+        name: savedCategory.name,
+        description: savedCategory.description,
+        image: savedCategory.image,
+        restaurantId: savedCategory.restaurantId,
+        adminId: admin.id,
+      },
+    });
+  } catch (err) {
+    res.status(400).json({
+      message: "something went wrong " + err.message,
     });
   }
 });
