@@ -4,11 +4,12 @@ const Admin = require("../models/admin");
 const ChefWaiter = require("../models/chefWaiter");
 const adminRouter = express.Router();
 const Category = require("../models/catetgory");
-
+const Item = require("../models/item");
+const validator = require("validator");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { authAdmin } = require("../middlewares/auth");
-const admin = require("../models/admin");
+const Restaurant = require("../models/restaurant");
 
 // --- Admin Signup ---
 adminRouter.post("/admin/signup", async (req, res) => {
@@ -200,6 +201,7 @@ adminRouter.post("/admin/add-categories", authAdmin, async (req, res) => {
     res.status(200).json({
       message: "category added successfully",
       category: {
+        id: savedCategory._id,
         name: savedCategory.name,
         description: savedCategory.description,
         image: savedCategory.image,
@@ -210,6 +212,82 @@ adminRouter.post("/admin/add-categories", authAdmin, async (req, res) => {
   } catch (err) {
     res.status(400).json({
       message: "something went wrong " + err.message,
+    });
+  }
+});
+
+adminRouter.post("/admin/add-items", authAdmin, async (req, res) => {
+  try {
+    const admin = req.admin;
+    const { name, description, price, image, restaurantId, categoryId } =
+      req.body;
+
+    // API-Level Validation
+    if (!name || name.trim() === "") {
+      return res.status(400).json({ message: "Item name is required" });
+    }
+    if (name.length < 2 || name.length > 100) {
+      return res
+        .status(400)
+        .json({ message: "Item name must be between 2 and 100 characters" });
+    }
+    if (!price || price <= 0) {
+      return res
+        .status(400)
+        .json({ message: "Price must be a positive number" });
+    }
+    if (!restaurantId) {
+      return res.status(400).json({ message: "Restaurant ID is required" });
+    }
+    if (!categoryId) {
+      return res.status(400).json({ message: "Category ID is required" });
+    }
+    if (image && !validator.isURL(image)) {
+      return res
+        .status(400)
+        .json({ message: "Please enter a valid image URL" });
+    }
+
+    // Validate that the restaurant exists
+    const restaurantExists = await Restaurant.findById(restaurantId);
+    if (!restaurantExists) {
+      return res.status(400).json({ message: "Restaurant not found" });
+    }
+
+    // Validate that the category exists
+    const categoryExists = await Category.findById(categoryId);
+    if (!categoryExists) {
+      return res.status(400).json({ message: "Category not found" });
+    }
+
+    // Create the item
+    const item = new Item({
+      name,
+      description,
+      price,
+      image,
+      restaurantId,
+      categoryId,
+    });
+
+    const savedItem = await item.save();
+
+    res.status(200).json({
+      message: "Item added successfully",
+      item: {
+        name: savedItem.name,
+        description: savedItem.description,
+        price: savedItem.price,
+        image: savedItem.image,
+        restaurantId: savedItem.restaurantId,
+        categoryId: savedItem.categoryId,
+        adminId: admin.id,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Something went wrong: " + err.message,
     });
   }
 });
