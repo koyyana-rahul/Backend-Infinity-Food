@@ -120,71 +120,67 @@ adminRouter.post("/admin/logout", async (req, res) => {
   }
 });
 
-adminRouter.post(
-  "/admin/create-chef-waiter",
-  authAdmin, // Middleware for authentication
-  async (req, res) => {
-    try {
-      // Destructure the data sent in the request body
-      const { name, email, password, role, restaurantId } = req.body;
+adminRouter.post("/admin/create-chef-waiter", authAdmin, async (req, res) => {
+  try {
+    // Destructure the data sent in the request body
+    const { name, email, password, role, restaurantId } = req.body;
 
-      // Validate input
-      if (!name || !email || !password || !role || !restaurantId) {
-        return res.status(400).json({ message: "All fields are required." });
-      }
-
-      // Check if the chef/waiter already exists
-      const existingChefWaiter = await ChefWaiter.findOne({ email });
-      if (existingChefWaiter) {
-        return res
-          .status(400)
-          .json({ message: `${role} already exists with this email.` });
-      }
-
-      // Hash password securely
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      // Create new ChefWaiter instance
-      const newChefWaiter = new ChefWaiter({
-        name,
-        email,
-        password: passwordHash,
-        role,
-        restaurantId,
-        adminId: req.admin._id, // Use the authenticated admin's ID
-      });
-
-      // Save new chef/waiter to the database
-      const savedChefWaiter = await newChefWaiter.save();
-
-      // Generate JWT token for the chef/waiter
-      const chefWaiterToken = await savedChefWaiter.getJWT();
-
-      // Respond with success message and the chef/waiter's data
-      res
-        .cookie("chefWaiter_token", chefWaiterToken, {
-          httpOnly: true, // Security measure to prevent client-side JS from accessing the cookie
-          expires: new Date(Date.now() + 8 * 3600000), // Cookie expiration (8 hours)
-        })
-        .status(201)
-        .json({
-          message: `${savedChefWaiter.role} created successfully.`,
-          chefWaiterToken,
-          chefWaiter: {
-            id: savedChefWaiter._id,
-            name: savedChefWaiter.name,
-            email: savedChefWaiter.email,
-            role: savedChefWaiter.role,
-            restaurantId: savedChefWaiter.restaurantId,
-            adminId: savedChefWaiter.adminId,
-          },
-        });
-    } catch (err) {
-      console.error("Error creating chef/waiter:", err); // Log error for debugging
-      res.status(500).json({ error: err.message || "Something went wrong" });
+    // Validate input
+    if (!name || !email || !password || !role || !restaurantId) {
+      return res.status(400).json({ message: "All fields are required." });
     }
+
+    // Check if the chef/waiter already exists
+    const existingChefWaiter = await ChefWaiter.findOne({ email });
+    if (existingChefWaiter) {
+      return res
+        .status(400)
+        .json({ message: `${role} already exists with this email.` });
+    }
+
+    // Hash password securely
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create new ChefWaiter instance
+    const newChefWaiter = new ChefWaiter({
+      name,
+      email,
+      password: passwordHash,
+      role,
+      restaurantId,
+      adminId: req.admin._id, // Use the authenticated admin's ID
+    });
+
+    // Save new chef/waiter to the database
+    const savedChefWaiter = await newChefWaiter.save();
+
+    // Generate JWT token for the chef/waiter
+    const chefWaiterToken = await savedChefWaiter.getJWT();
+
+    // Respond with success message and the chef/waiter's data
+    res
+      .cookie("chefWaiter_token", chefWaiterToken, {
+        httpOnly: true, // Security measure to prevent client-side JS from accessing the cookie
+        expires: new Date(Date.now() + 8 * 3600000), // Cookie expiration (8 hours)
+      })
+      .status(201)
+      .json({
+        message: `${savedChefWaiter.role} created successfully.`,
+        chefWaiterToken,
+        chefWaiter: {
+          id: savedChefWaiter._id,
+          name: savedChefWaiter.name,
+          email: savedChefWaiter.email,
+          role: savedChefWaiter.role,
+          restaurantId: savedChefWaiter.restaurantId,
+          adminId: savedChefWaiter.adminId,
+        },
+      });
+  } catch (err) {
+    console.error("Error creating chef/waiter:", err); // Log error for debugging
+    res.status(500).json({ error: err.message || "Something went wrong" });
   }
-);
+});
 
 adminRouter.post("/admin/add-categories", authAdmin, async (req, res) => {
   try {
@@ -486,6 +482,30 @@ adminRouter.delete("/delete/item/:id", authAdmin, async (req, res) => {
       success: false,
       message: "failed to delete item",
       error: err.message,
+    });
+  }
+});
+
+adminRouter.delete("/delete/chef-waiter/:id", authAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedChefWaiter = await ChefWaiter.findByIdAndDelete(id);
+    if (!deletedChefWaiter) {
+      return res.status(400).json({
+        success: false,
+        message: "chef/waiter not found",
+      });
+    }
+    res.status(200).json({
+      success: true,
+      message: "chef/waiter deleted successfully",
+      chefWaiter: deletedChefWaiter,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: "failed to delete chef/waiter",
+      error: err.messagge,
     });
   }
 });
