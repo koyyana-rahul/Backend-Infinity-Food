@@ -10,6 +10,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { authAdmin } = require("../middlewares/auth");
 const Restaurant = require("../models/restaurant");
+const admin = require("../models/admin");
 
 // --- Admin Signup ---
 adminRouter.post("/admin/signup", async (req, res) => {
@@ -219,8 +220,15 @@ adminRouter.post("/admin/add-categories", authAdmin, async (req, res) => {
 adminRouter.post("/admin/add-items", authAdmin, async (req, res) => {
   try {
     const admin = req.admin;
-    const { name, description, price, image, restaurantId, categoryId } =
-      req.body;
+    const {
+      name,
+      description,
+      price,
+      image,
+      vegType,
+      restaurantId,
+      categoryId,
+    } = req.body;
 
     // API-Level Validation
     if (!name || name.trim() === "") {
@@ -266,6 +274,7 @@ adminRouter.post("/admin/add-items", authAdmin, async (req, res) => {
       description,
       price,
       image,
+      vegType,
       restaurantId,
       categoryId,
     });
@@ -279,6 +288,7 @@ adminRouter.post("/admin/add-items", authAdmin, async (req, res) => {
         description: savedItem.description,
         price: savedItem.price,
         image: savedItem.image,
+        vegType: savedItem.vegType,
         restaurantId: savedItem.restaurantId,
         categoryId: savedItem.categoryId,
         adminId: admin.id,
@@ -288,6 +298,54 @@ adminRouter.post("/admin/add-items", authAdmin, async (req, res) => {
     console.error(err);
     res.status(500).json({
       message: "Something went wrong: " + err.message,
+    });
+  }
+});
+
+adminRouter.get("/all-categories", authAdmin, async (req, res) => {
+  try {
+    const { restaurantId } = req.body;
+
+    if (!restaurantId) {
+      return res.status(400).json({
+        success: false,
+        message: "restaurantId is required",
+      });
+    }
+
+    const categories = await Category.find({ restaurantId });
+
+    res.status(200).json({
+      success: true,
+      message: "Categories fetched successfully",
+      categoires: categories,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch categories",
+      error: err.message,
+    });
+  }
+});
+
+adminRouter.get("/category-items", authAdmin, async (req, res) => {
+  try {
+    const { categoryId } = req.body;
+    if (!categoryId) {
+      return res.json(400).send({ message: "categoryId is required" });
+    }
+
+    const items = await Item.find({ categoryId });
+    res.status(200).json({
+      message: "items fetched successfully",
+      items: items,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: "failed to fetch items",
+      error: err.message,
     });
   }
 });

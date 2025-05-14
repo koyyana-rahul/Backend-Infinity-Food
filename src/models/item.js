@@ -31,6 +31,13 @@ const itemSchema = mongoose.Schema(
           "Please enter a valid image URL (http(s) and ends with .jpg, .png, etc)",
       },
     },
+    vegType: {
+      type: String,
+      required: [true, "Veg/Non-veg type is required"],
+      enum: ["veg", "non-veg"],
+      lowercase: true,
+      trim: true,
+    },
     restaurantId: {
       type: mongoose.Schema.Types.ObjectId,
       required: [true, "Restaurant ID is required"],
