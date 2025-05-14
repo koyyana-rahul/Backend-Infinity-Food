@@ -284,6 +284,7 @@ adminRouter.post("/admin/add-items", authAdmin, async (req, res) => {
     res.status(200).json({
       message: "Item added successfully",
       item: {
+        id: savedItem._id,
         name: savedItem.name,
         description: savedItem.description,
         price: savedItem.price,
@@ -302,7 +303,7 @@ adminRouter.post("/admin/add-items", authAdmin, async (req, res) => {
   }
 });
 
-adminRouter.get("/all-categories", authAdmin, async (req, res) => {
+adminRouter.get("/view/all-categories", authAdmin, async (req, res) => {
   try {
     const { restaurantId } = req.body;
 
@@ -329,7 +330,7 @@ adminRouter.get("/all-categories", authAdmin, async (req, res) => {
   }
 });
 
-adminRouter.get("/category-items", authAdmin, async (req, res) => {
+adminRouter.get("/view/category-items", authAdmin, async (req, res) => {
   try {
     const { categoryId } = req.body;
     if (!categoryId) {
@@ -345,6 +346,145 @@ adminRouter.get("/category-items", authAdmin, async (req, res) => {
     res.status(400).json({
       success: false,
       message: "failed to fetch items",
+      error: err.message,
+    });
+  }
+});
+
+adminRouter.patch("/edit/category/:id", authAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Optionally validate allowed fields
+    const allowedUpdates = ["name", "description", "image"];
+    const isValidOperation = Object.keys(updates).every((field) =>
+      allowedUpdates.includes(field)
+    );
+
+    if (!isValidOperation) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid update fields",
+      });
+    }
+
+    const updatedCategory = await Category.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedCategory) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Category updated successfully",
+      data: updatedCategory,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update category",
+      error: err.message,
+    });
+  }
+});
+
+adminRouter.patch("/edit/item/:id", authAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // 1. Only allow these fields to be updated:
+    const allowedUpdates = ["name", "description", "price", "image", "vegType"];
+    const isValidOperation = Object.keys(updates).every((field) =>
+      allowedUpdates.includes(field)
+    );
+    if (!isValidOperation) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid update fields",
+      });
+    }
+
+    // 2. Load the item so that your pre("save") normalization hook runs
+    const item = await Item.findById(id);
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found",
+      });
+    }
+
+    // 3. Apply updates
+    Object.assign(item, updates);
+
+    // 4. Save (triggers validation & your pre-save hook)
+    await item.save();
+
+    // 5. Respond
+    res.status(200).json({
+      success: true,
+      message: "Item updated successfully",
+      data: item,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update item",
+      error: err.message,
+    });
+  }
+});
+
+adminRouter.delete("/delete/category/:id", authAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedCategory = await Category.findByIdAndDelete(id);
+    if (!deletedCategory) {
+      return res.status(400).send({
+        success: false,
+        message: "category not found",
+      });
+    }
+    res.status(200).send({
+      success: true,
+      message: "category deleted successfully",
+      category: deletedCategory,
+    });
+  } catch (err) {
+    res.status(400).send({
+      success: false,
+      message: "failed to delete category",
+      error: err.message,
+    });
+  }
+});
+
+adminRouter.delete("/delete/item/:id", authAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedItem = await Item.findByIdAndDelete(id);
+    if (!deletedItem) {
+      return res.status(400).send({
+        success: false,
+        message: "item not found",
+      });
+    }
+    res.status(200).send({
+      success: true,
+      message: "item deleted successfully",
+      item: deletedItem,
+    });
+  } catch (err) {
+    res.status(400).send({
+      success: false,
+      message: "failed to delete item",
       error: err.message,
     });
   }
