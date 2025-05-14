@@ -347,6 +347,48 @@ adminRouter.get("/view/category-items", authAdmin, async (req, res) => {
   }
 });
 
+adminRouter.patch("/edit/restaurant/:id", authAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const allowedUpdates = ["name", "image", "address", "contact"];
+
+    const isValidOperation = Object.keys(updates).every((field) =>
+      allowedUpdates.includes(field)
+    );
+
+    if (!isValidOperation) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid updates field",
+      });
+    }
+    const restaurant = await Restaurant.findById(id);
+    if (!restaurant) {
+      return res.status(400).json({
+        success: false,
+        message: "restaurant item found",
+      });
+    }
+    Object.assign(restaurant, updates);
+
+    await restaurant.save();
+
+    res.status(200).json({
+      success: true,
+      message: "restaurant updated successfully",
+      restaurant: restaurant,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: true,
+      message: "Failed to update restaurant",
+      error: err.message,
+    });
+  }
+});
+
 adminRouter.patch("/edit/category/:id", authAdmin, async (req, res) => {
   try {
     const { id } = req.params;
