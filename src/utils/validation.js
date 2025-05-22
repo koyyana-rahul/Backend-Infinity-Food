@@ -47,7 +47,7 @@ const validateCreateRestaurant = async (req) => {
 };
 
 const validateAdminSignup = (req) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
 
   if (!name || typeof name !== "string" || name.trim().length < 2) {
     throw new Error("Name must be at least 2 characters long");
@@ -75,5 +75,6 @@ const validateAdminSignup = (req) => {
     );
   }
 };
+
 
 module.exports = { validateAdminSignup, validateCreateRestaurant };

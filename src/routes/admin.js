@@ -15,7 +15,7 @@ const admin = require("../models/admin");
 // --- Admin Signup ---
 adminRouter.post("/admin/signup", async (req, res) => {
   try {
-    validateAdminSignup(req);
+    await validateAdminSignup(req);
 
     const { name, email, password } = req.body;
 
@@ -119,6 +119,56 @@ adminRouter.post("/admin/logout", async (req, res) => {
     });
   }
 });
+
+adminRouter.get("/admin/profile-view", authAdmin, async (req, res) => {
+  try {
+    const admin = req.admin;
+    res.status(200).json({
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+      },
+    });
+  } catch (err) {
+    console.error(err); // Log the error for debugging
+    res.status(500).json({ error: err.message || "Login failed" });
+  }
+});
+
+adminRouter.get(
+  "/admin/create-restaurant/view",
+  authAdmin,
+  async (req, res) => {
+    try {
+      const admin = req.admin;
+      const adminId = admin?.id;
+
+      // Find restaurant where ownerId matches admin's ID
+      const restaurant = await Restaurant.findOne({ ownerId: adminId });
+
+      if (!restaurant) {
+        return res.status(404).json({ message: "Restaurant not found" });
+      }
+
+      res.status(200).json({
+        restaurant: {
+          id: restaurant._id,
+          name: restaurant.name,
+          image: restaurant.image,
+          address: restaurant.address,
+          contact: restaurant.contact,
+          adminId: adminId,
+          qrcodeId: adminId,
+        },
+      });
+    } catch (err) {
+      console.error("Error fetching restaurant:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
 
 adminRouter.post("/admin/create-chef-waiter", authAdmin, async (req, res) => {
   try {
@@ -325,6 +375,12 @@ adminRouter.get("/view/all-categories", authAdmin, async (req, res) => {
     });
   }
 });
+
+// adminRouter.get("/view/chef-waiters", authAdmin, async (req, res) => {
+//   try {
+//     const { restaurantId } = req.body;
+//   } catch (err) {}
+// });
 
 adminRouter.get("/view/category-items", authAdmin, async (req, res) => {
   try {
